@@ -4,16 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>⚡ POWER CLICKER</title>
-
-<!-- Firebase SDK (актуальная версия на 2026) -->
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
 <style>
-  /* твой стиль без изменений — оставляю как есть */
   :root {
     --bg: #050510;
     --accent: #00ffcc;
@@ -22,28 +16,23 @@
   }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); font-family:'Share Tech Mono',monospace; color:var(--accent); }
-
   body::before {
     content:''; position:fixed; inset:0;
     background-image: linear-gradient(rgba(0,255,204,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(0,255,204,0.03) 1px,transparent 1px);
     background-size:30px 30px; pointer-events:none; z-index:0;
   }
-
   .app { display:flex; flex-direction:column; height:100vh; height:100dvh; position:relative; z-index:1; }
-
   .header { display:flex; align-items:center; justify-content:space-between; padding:8px 14px 4px; flex-shrink:0; }
   .logo { font-family:'Orbitron',monospace; font-size:1rem; font-weight:900; letter-spacing:0.2em; color:var(--accent); text-shadow:0 0 15px #00ffcc88; }
   .save-dot { width:7px; height:7px; border-radius:50%; background:#00ffcc22; transition:background 0.4s,box-shadow 0.4s; }
   .save-dot.saving { background:var(--accent3); box-shadow:0 0 8px var(--accent3); }
   .save-dot.saved  { background:var(--accent);  box-shadow:0 0 8px var(--accent); }
   .save-dot.error  { background:var(--accent2); box-shadow:0 0 8px var(--accent2); }
-
   .center { display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; padding:6px 0 10px; gap:5px; }
   .score-label { font-size:0.52rem; letter-spacing:0.3em; color:#00ffcc33; }
   .score { font-family:'Orbitron',monospace; font-size:2.4rem; font-weight:900; color:var(--accent); text-shadow:0 0 25px #00ffcc99; line-height:1; transition:transform 0.05s; }
   .score.bump { transform:scale(1.06); }
   .per-sec { font-size:0.62rem; color:var(--accent2); text-shadow:0 0 8px var(--accent2); letter-spacing:0.1em; }
-
   .click-btn {
     width:130px; height:130px; border-radius:50%;
     border:2px solid var(--accent);
@@ -56,17 +45,14 @@
   @keyframes ring { 0%,100%{opacity:0;transform:scale(1)} 50%{opacity:0.2;transform:scale(1.05)} }
   .click-btn:active { transform:scale(0.90); box-shadow:0 0 60px #00ffccaa,inset 0 0 30px #00ffcc22; }
   .click-info { font-size:0.56rem; color:#00ffcc33; letter-spacing:0.1em; }
-
   .tabs { display:flex; border-top:1px solid #00ffcc18; border-bottom:1px solid #00ffcc18; flex-shrink:0; }
   .tab { flex:1; background:none; border:none; color:#00ffcc44; font-family:'Orbitron',monospace; font-size:0.52rem; letter-spacing:0.1em; padding:8px 2px; cursor:pointer; transition:color 0.2s,background 0.2s; text-transform:uppercase; }
   .tab.active { color:var(--accent); background:#00ffcc0a; text-shadow:0 0 8px var(--accent); }
-
   .panels { flex:1; overflow:hidden; position:relative; }
   .panel { position:absolute; inset:0; overflow-y:auto; padding:8px 10px 16px; display:none; -webkit-overflow-scrolling:touch; }
   .panel.active { display:block; }
   .panel::-webkit-scrollbar { width:3px; }
   .panel::-webkit-scrollbar-thumb { background:#00ffcc22; border-radius:2px; }
-
   .item-btn {
     width:100%; background:#000; border:1px solid #00ffcc18; color:var(--accent);
     font-family:'Share Tech Mono',monospace; font-size:0.7rem; padding:10px 12px; margin-bottom:6px;
@@ -80,7 +66,6 @@
   .item-desc { font-size:0.56rem; color:#00ffcc44; }
   .item-owned { font-size:0.54rem; color:var(--accent2); }
   .item-cost { color:var(--accent3); font-size:0.66rem; white-space:nowrap; padding-left:8px; }
-
   .prestige-wrap { margin-top:8px; }
   .prestige-btn {
     width:100%; background:linear-gradient(135deg,#1a0020,#0a000f);
@@ -91,18 +76,14 @@
   .prestige-btn:active:not([disabled]) { box-shadow:0 0 25px #ff00aa55; }
   .prestige-btn[disabled] { opacity:0.2; cursor:not-allowed; }
   .prestige-info { font-size:0.54rem; color:var(--accent2); text-align:center; margin-top:5px; line-height:1.7; }
-
   .stat-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #00ffcc0a; font-size:0.66rem; }
   .stat-row:last-child { border-bottom:none; }
   .stat-label { color:#00ffcc44; }
   .stat-val { color:var(--accent); }
-
   .float-text { position:fixed; font-family:'Orbitron',monospace; font-weight:700; pointer-events:none; z-index:500; animation:floatUp 0.85s ease-out forwards; }
   @keyframes floatUp { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-65px) scale(0.5)} }
-
   .notif { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#0a0a1f; border:1px solid var(--accent3); color:var(--accent3); font-family:'Share Tech Mono',monospace; font-size:0.62rem; padding:7px 16px; z-index:200; animation:notifAnim 2s ease forwards; white-space:nowrap; border-radius:2px; }
   @keyframes notifAnim { 0%{opacity:0;bottom:4px} 15%{opacity:1;bottom:16px} 75%{opacity:1;bottom:16px} 100%{opacity:0;bottom:4px} }
-
   #loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; gap:14px; }
   .loading-text { font-family:'Orbitron',monospace; font-size:0.7rem; letter-spacing:0.25em; color:var(--accent); animation:blink 1s ease-in-out infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
@@ -125,365 +106,192 @@
     <div class="score-label">ЭНЕРГИЯ</div>
     <div class="score" id="score">0</div>
     <div class="per-sec" id="per-sec">+0 / сек</div>
-    <button class="click-btn" id="click-btn" onclick="handleClick(event)">⚡</button>
+    <button class="click-btn" id="click-btn">⚡</button>
     <div class="click-info" id="click-info">за клик: +1</div>
   </div>
 
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('upgrades',this)">▸ УЛУЧШЕНИЯ</button>
-    <button class="tab" onclick="switchTab('generators',this)">◈ ГЕНЕРАТОРЫ</button>
-    <button class="tab" onclick="switchTab('stats',this)">≡ СТАТИСТИКА</button>
+    <button class="tab active" data-tab="upgrades">▸ УЛУЧШЕНИЯ</button>
+    <button class="tab" data-tab="generators">◈ ГЕНЕРАТОРЫ</button>
+    <button class="tab" data-tab="stats">≡ СТАТИСТИКА</button>
   </div>
 
   <div class="panels">
-    <div class="panel active" id="panel-upgrades"><div id="upgrades-list"></div></div>
-    <div class="panel" id="panel-generators">
-      <div id="auto-list"></div>
-      <div class="prestige-wrap">
-        <button class="prestige-btn" id="prestige-btn" onclick="doPrestige()">◈ PRESTIGE</button>
-        <div class="prestige-info" id="prestige-info"></div>
-      </div>
-    </div>
-    <div class="panel" id="panel-stats"><div id="stats-list"></div></div>
+    <div class="panel active" id="panel-upgrades"></div>
+    <div class="panel" id="panel-generators"></div>
+    <div class="panel" id="panel-stats"></div>
   </div>
 </div>
 
 <script>
-// ── Telegram WebApp ──────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
+// Основные переменные
+// ────────────────────────────────────────────────────────────────
 const tg = window.Telegram?.WebApp || {};
-if (tg.ready) tg.ready();
-if (tg.expand) tg.expand();
-if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+tg.ready?.();
+tg.expand?.();
+tg.disableVerticalSwipes?.();
 
-// Получаем user ID (самое важное для синхронизации)
-let userId = tg.initDataUnsafe?.user?.id?.toString() || 'guest_' + Date.now();
-const SAVE_PATH = `saves/${userId}`;
+const SAVE_KEY = 'power_clicker_v2026_3';
 
-// ── Firebase ─────────────────────────────────────────────────────
-const firebaseConfig = {
-  // ВСТАВЬТЕ_СВОЙ_FIREBASE_CONFIG_СЮДА
-  // пример:
-  // apiKey: "AIzaSy...",
-  // authDomain: "your-project.firebaseapp.com",
-  // databaseURL: "https://your-project-default-rtdb.firebaseio.com",
-  // projectId: "your-project",
-  // storageBucket: "your-project.appspot.com",
-  // messagingSenderId: "...",
-  // appId: "..."
-};
-
-let database;
-try {
-  firebase.initializeApp(firebaseConfig);
-  database = firebase.database();
-} catch (e) {
-  console.error("Firebase init error:", e);
-  alert("Ошибка подключения к сохранению. Прогресс сохранится только локально.");
-}
-
-// ── Базовые данные ───────────────────────────────────────────────
-const BASE_UPGRADES = [
-  { name:'Усилитель',   desc:'+1 за клик',   cost:50,     clickBonus:1   },
-  { name:'Суперзаряд',  desc:'+5 за клик',   cost:300,    clickBonus:5   },
-  { name:'Молния',      desc:'+20 за клик',  cost:2000,   clickBonus:20  },
-  { name:'Плазма',      desc:'+100 за клик', cost:15000,  clickBonus:100 },
-  { name:'Антиматерия', desc:'+500 за клик', cost:100000, clickBonus:500 },
-];
-const BASE_GENERATORS = [
-  { name:'Батарейка',        desc:'+1/сек',    cost:100,    perSec:1    },
-  { name:'Солнечная панель', desc:'+5/сек',    cost:500,    perSec:5    },
-  { name:'Реактор',          desc:'+25/сек',   cost:3000,   perSec:25   },
-  { name:'Термоядерный',     desc:'+150/сек',  cost:20000,  perSec:150  },
-  { name:'Тёмная энергия',   desc:'+1000/сек', cost:150000, perSec:1000 },
-];
-
-const U_MULT = 2.2;
-const G_MULT = 1.8;
-
-function calcCost(baseCost, owned, mult) {
-  let c = baseCost;
-  for (let i = 0; i < owned; i++) c = Math.floor(c * mult);
-  return c;
-}
-
-// ── Состояние ────────────────────────────────────────────────────
-let score         = 0;
-let totalClicks   = 0;
-let totalEarned   = 0;
+let score = 0;
+let totalClicks = 0;
+let totalEarned = 0;
 let prestigeCount = 0;
 let prestigeMulti = 1;
 let uOwned = [0,0,0,0,0];
 let gOwned = [0,0,0,0,0];
 
-// ── Геттеры ──────────────────────────────────────────────────────
+const BASE_UPGRADES = [
+  {name:'Усилитель',   desc:'+1 за клик',   cost:50,    bonus:1},
+  {name:'Суперзаряд',  desc:'+5 за клик',   cost:300,   bonus:5},
+  {name:'Молния',      desc:'+20 за клик',  cost:2000,  bonus:20},
+  {name:'Плазма',      desc:'+100 за клик', cost:15000, bonus:100},
+  {name:'Антиматерия', desc:'+500 за клик', cost:100000,bonus:500}
+];
+
+const BASE_GENERATORS = [
+  {name:'Батарейка',        desc:'+1/сек',    cost:100,   perSec:1},
+  {name:'Солнечная панель', desc:'+5/сек',    cost:500,   perSec:5},
+  {name:'Реактор',          desc:'+25/сек',   cost:3000,  perSec:25},
+  {name:'Термоядерный',     desc:'+150/сек',  cost:20000, perSec:150},
+  {name:'Тёмная энергия',   desc:'+1000/сек', cost:150000,perSec:1000}
+];
+
+const U_MULT = 2.2;
+const G_MULT = 1.8;
+
+// ────────────────────────────────────────────────────────────────
+// Вспомогательные функции
+// ────────────────────────────────────────────────────────────────
+function fmt(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2)+'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toString();
+}
+
+function calcCost(base, owned, mult) {
+  let c = base;
+  for (let i = 0; i < owned; i++) c = Math.floor(c * mult);
+  return c;
+}
+
 function getClickPower() {
-  let bonus = 0;
-  for (let i = 0; i < BASE_UPGRADES.length; i++)
-    bonus += BASE_UPGRADES[i].clickBonus * uOwned[i];
-  return Math.max(1, Math.floor((1 + bonus) * prestigeMulti));
+  let b = 0;
+  for (let i = 0; i < 5; i++) b += BASE_UPGRADES[i].bonus * uOwned[i];
+  return Math.max(1, Math.floor((1 + b) * prestigeMulti));
 }
 
 function getPerSec() {
   let ps = 0;
-  for (let i = 0; i < BASE_GENERATORS.length; i++)
-    ps += BASE_GENERATORS[i].perSec * gOwned[i];
+  for (let i = 0; i < 5; i++) ps += BASE_GENERATORS[i].perSec * gOwned[i];
   return Math.floor(ps * prestigeMulti);
 }
 
-function fmt(n) {
-  n = Math.floor(n);
-  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
-  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
-  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
-  return '' + n;
+// ────────────────────────────────────────────────────────────────
+// Сохранение / загрузка — DeviceStorage → CloudStorage → localStorage
+// ────────────────────────────────────────────────────────────────
+function getStorage() {
+  if (tg.DeviceStorage)  return {type: 'Device',  obj: tg.DeviceStorage};
+  if (tg.CloudStorage)   return {type: 'Cloud',   obj: tg.CloudStorage};
+  return {type: 'local', obj: null};
 }
 
-// ── Сохранение / Загрузка ────────────────────────────────────────
-function buildSave() {
-  return {
-    v: 4,
-    score, totalClicks, totalEarned,
-    prestigeCount, prestigeMulti,
-    uOwned, gOwned,
-    timestamp: Date.now()
-  };
-}
+const storage = getStorage();
+let saveInProgress = false;
 
-function applySave(data) {
-  if (!data || data.v !== 4) return;
-  score         = Number(data.score)         || 0;
-  totalClicks   = Number(data.totalClicks)   || 0;
-  totalEarned   = Number(data.totalEarned)   || 0;
-  prestigeCount = Number(data.prestigeCount) || 0;
-  prestigeMulti = Number(data.prestigeMulti) || 1;
-  uOwned = Array.isArray(data.uOwned) ? data.uOwned.map(x => Number(x)||0) : [0,0,0,0,0];
-  gOwned = Array.isArray(data.gOwned) ? data.gOwned.map(x => Number(x)||0) : [0,0,0,0,0];
-}
+function doSave() {
+  if (saveInProgress) return;
+  saveInProgress = true;
 
-function setDot(cls) {
-  const d = document.getElementById('save-dot');
-  d.className = 'save-dot ' + (cls || '');
-  if (cls) setTimeout(() => d.className = 'save-dot', 2500);
-}
+  const data = JSON.stringify({
+    v: 2026_3,
+    s: score,
+    tc: totalClicks,
+    te: totalEarned,
+    pc: prestigeCount,
+    pm: prestigeMulti,
+    uo: uOwned,
+    go: gOwned
+  });
 
-async function doSave() {
-  const data = buildSave();
-  setDot('saving');
+  const dot = document.getElementById('save-dot');
+  dot.className = 'save-dot saving';
 
-  if (database) {
-    try {
-      await database.ref(SAVE_PATH).set(data);
-      setDot('saved');
-      localStorage.setItem('pclick_last', JSON.stringify(data)); // резерв
-    } catch (e) {
-      console.error("Firebase save error:", e);
-      setDot('error');
-      try { localStorage.setItem('pclick_last', JSON.stringify(data)); } catch(_) {}
-    }
-  } else {
-    try { localStorage.setItem('pclick_last', JSON.stringify(data)); } catch(_) {}
-    setDot('saved');
+  function finish(cls) {
+    dot.className = 'save-dot ' + cls;
+    setTimeout(() => dot.className = 'save-dot', 1800);
+    saveInProgress = false;
   }
-}
 
-async function loadSave() {
-  if (database) {
-    try {
-      const snap = await database.ref(SAVE_PATH).once('value');
-      const data = snap.val();
-      if (data) {
-        applySave(data);
-        return true;
+  if (storage.type !== 'local') {
+    storage.obj.setItem(SAVE_KEY, data, err => {
+      if (err) {
+        console.warn(storage.type + ' save failed', err);
+        try { localStorage.setItem(SAVE_KEY, data); } catch(e){}
+        finish('error');
+      } else {
+        finish('saved');
       }
+    });
+  } else {
+    try {
+      localStorage.setItem(SAVE_KEY, data);
+      finish('saved');
     } catch (e) {
-      console.error("Firebase load error:", e);
+      finish('error');
     }
   }
-
-  // fallback local
-  try {
-    const raw = localStorage.getItem('pclick_last');
-    if (raw) {
-      applySave(JSON.parse(raw));
-      return true;
-    }
-  } catch (_) {}
-  return false;
 }
 
-// ── Игровые функции ──────────────────────────────────────────────
+function loadSave(callback) {
+  function apply(raw) {
+    try {
+      const d = JSON.parse(raw);
+      if (d.v !== 2026_3) return;
+      score         = d.s  || 0;
+      totalClicks   = d.tc || 0;
+      totalEarned   = d.te || 0;
+      prestigeCount = d.pc || 0;
+      prestigeMulti = d.pm || 1;
+      uOwned        = Array.isArray(d.uo) ? d.uo.map(Number) : [0,0,0,0,0];
+      gOwned        = Array.isArray(d.go) ? d.go.map(Number) : [0,0,0,0,0];
+    } catch (e) {}
+  }
+
+  if (storage.type !== 'local') {
+    storage.obj.getItem(SAVE_KEY, (err, val) => {
+      if (!err && val) apply(val);
+      else {
+        const loc = localStorage.getItem(SAVE_KEY);
+        if (loc) apply(loc);
+      }
+      callback();
+    });
+  } else {
+    const loc = localStorage.getItem(SAVE_KEY);
+    if (loc) apply(loc);
+    callback();
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
+// Игровая логика
+// ────────────────────────────────────────────────────────────────
 function handleClick(e) {
   const power = getClickPower();
   score += power;
   totalClicks++;
   totalEarned += power;
 
-  const el = document.createElement('div');
-  el.className = 'float-text';
-  el.textContent = '+' + fmt(power);
-  el.style.left = (e.clientX - 16) + 'px';
-  el.style.top  = (e.clientY - 16) + 'px';
-  const col = Math.random() > 0.5 ? '#00ffcc' : '#ffee00';
-  el.style.color = col;
-  el.style.textShadow = '0 0 8px ' + col;
-  el.style.fontSize = Math.min(0.8 + power / 60, 1.8) + 'rem';
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 850);
+  const fl = document.createElement('div');
+  fl.className = 'float-text';
+  fl.textContent = '+' + fmt(power);
+  fl.style.left = e.clientX - 20 + 'px';
+  fl.style.top  = e.clientY - 20 + 'px';
+  fl.style.color = Math.random() > 0.5 ? '#00ffcc' : '#ffee00';
+  document.body.appendChild(fl);
+  setTimeout(() => fl.remove(), 900);
 
-  doSave(); // немедленное сохранение после клика
-  updateUI();
-}
-
-function buyUpgrade(idx) {
-  const base = BASE_UPGRADES[idx];
-  const cost = calcCost(base.cost, uOwned[idx], U_MULT);
-  if (score < cost) return;
-  score -= cost;
-  uOwned[idx]++;
-  notify('⚡ ' + base.name + ' куплено!');
-  doSave();
-  updateUI();
-}
-
-function buyGenerator(idx) {
-  const base = BASE_GENERATORS[idx];
-  const cost = calcCost(base.cost, gOwned[idx], G_MULT);
-  if (score < cost) return;
-  score -= cost;
-  gOwned[idx]++;
-  notify('◈ ' + base.name + ' активирован!');
-  doSave();
-  updateUI();
-}
-
-function doPrestige() {
-  const thr = 1e6 * Math.pow(5, prestigeCount);
-  if (totalEarned < thr) return;
-
-  prestigeCount++;
-  prestigeMulti = 1 + prestigeCount * 0.5;
-
-  score = 0;
-  totalEarned = 0;
-  totalClicks = 0;
-  uOwned = [0,0,0,0,0];
-  gOwned = [0,0,0,0,0];
-
-  notify('🌟 PRESTIGE x' + prestigeCount + '! Множитель x' + prestigeMulti);
-  doSave();
-  updateUI();
-}
-
-function notify(msg) {
-  document.querySelector('.notif')?.remove();
-  const el = document.createElement('div');
-  el.className = 'notif';
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2000);
-}
-
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('panel-' + name).classList.add('active');
-}
-
-// ── Отрисовка ────────────────────────────────────────────────────
-function updateUI() {
-  const scoreEl = document.getElementById('score');
-  scoreEl.textContent = fmt(score);
-  scoreEl.classList.remove('bump');
-  void scoreEl.offsetWidth;
-  scoreEl.classList.add('bump');
-  setTimeout(() => scoreEl.classList.remove('bump'), 60);
-
-  document.getElementById('per-sec').textContent = '+' + fmt(getPerSec()) + ' / сек';
-  document.getElementById('click-info').textContent = 'за клик: +' + fmt(getClickPower());
-
-  // upgrades
-  const ul = document.getElementById('upgrades-list');
-  ul.innerHTML = '';
-  BASE_UPGRADES.forEach((base, i) => {
-    const cost = calcCost(base.cost, uOwned[i], U_MULT);
-    const btn = document.createElement('button');
-    btn.className = 'item-btn' + (score >= cost ? '' : ' locked');
-    btn.innerHTML = `
-      <div class="item-left">
-        <span class="item-name">${base.name}</span>
-        <span class="item-desc">${base.desc}</span>
-        ${uOwned[i] > 0 ? `<span class="item-owned">куплено: ${uOwned[i]}</span>` : ''}
-      </div>
-      <span class="item-cost">${fmt(cost)} ⚡</span>`;
-    btn.onclick = () => buyUpgrade(i);
-    ul.appendChild(btn);
-  });
-
-  // generators
-  const gl = document.getElementById('auto-list');
-  gl.innerHTML = '';
-  BASE_GENERATORS.forEach((base, i) => {
-    const cost = calcCost(base.cost, gOwned[i], G_MULT);
-    const btn = document.createElement('button');
-    btn.className = 'item-btn' + (score >= cost ? '' : ' locked');
-    btn.innerHTML = `
-      <div class="item-left">
-        <span class="item-name">${base.name}</span>
-        <span class="item-desc">${base.desc}</span>
-        ${gOwned[i] > 0 ? `<span class="item-owned">активно: ${gOwned[i]}</span>` : ''}
-      </div>
-      <span class="item-cost">${fmt(cost)} ⚡</span>`;
-    btn.onclick = () => buyGenerator(i);
-    gl.appendChild(btn);
-  });
-
-  // prestige
-  const thr = 1e6 * Math.pow(5, prestigeCount);
-  const pb = document.getElementById('prestige-btn');
-  if (totalEarned >= thr) pb.removeAttribute('disabled');
-  else pb.setAttribute('disabled', true);
-  pb.textContent = `◈ PRESTIGE (нужно ${fmt(thr)} ⚡)`;
-  document.getElementById('prestige-info').innerHTML = prestigeCount
-    ? `Prestige: ${prestigeCount}  ·  Множитель: x${prestigeMulti}<br>Накоплено: ${fmt(totalEarned)} / ${fmt(thr)}`
-    : `Накопи ${fmt(thr)} ⚡ для Prestige`;
-
-  // stats
-  document.getElementById('stats-list').innerHTML = `
-    <div class="stat-row"><span class="stat-label">User ID</span><span class="stat-val">${userId}</span></div>
-    <div class="stat-row"><span class="stat-label">Энергия</span><span class="stat-val">${fmt(score)} ⚡</span></div>
-    <div class="stat-row"><span class="stat-label">Всего накоплено</span><span class="stat-val">${fmt(totalEarned)} ⚡</span></div>
-    <div class="stat-row"><span class="stat-label">Кликов</span><span class="stat-val">${fmt(totalClicks)}</span></div>
-    <div class="stat-row"><span class="stat-label">За клик</span><span class="stat-val">+${fmt(getClickPower())} ⚡</span></div>
-    <div class="stat-row"><span class="stat-label">В секунду</span><span class="stat-val">+${fmt(getPerSec())} ⚡</span></div>
-    <div class="stat-row"><span class="stat-label">Prestige</span><span class="stat-val">${prestigeCount}x</span></div>
-    <div class="stat-row"><span class="stat-label">Множитель</span><span class="stat-val">x${prestigeMulti}</span></div>
-    <div class="stat-row"><span class="stat-label">Сохранение</span><span class="stat-val">${database ? 'Firebase' : 'local'}</span></div>`;
-}
-
-// ── Автотик + автосохранение ─────────────────────────────────────
-setInterval(() => {
-  const ps = getPerSec();
-  if (ps > 0) {
-    const gain = ps / 20;
-    score += gain;
-    totalEarned += gain;
-    updateUI();
-  }
-}, 50);
-
-setInterval(doSave, 15000); // каждые 15 сек
-
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') doSave();
-});
-
-// ── Старт ────────────────────────────────────────────────────────
-loadSave().then(() => {
-  document.getElementById('loading-screen').style.display = 'none';
-  updateUI();
-  doSave(); // первое сохранение после загрузки
-});
-</script>
-</body>
-</html>
+  const btn = document.getElement
