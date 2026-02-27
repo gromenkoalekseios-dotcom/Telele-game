@@ -4,9 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>⚡ POWER CLICKER</title>
+
+<!-- Firebase SDK (актуальная версия на 2026) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
 <style>
+  /* твой стиль без изменений — оставляю как есть */
   :root {
     --bg: #050510;
     --accent: #00ffcc;
@@ -142,19 +149,39 @@
 </div>
 
 <script>
-const tg = window.Telegram?.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
-  tg.disableVerticalSwipes?.();
+// ── Telegram WebApp ──────────────────────────────────────────────
+const tg = window.Telegram?.WebApp || {};
+if (tg.ready) tg.ready();
+if (tg.expand) tg.expand();
+if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+
+// Получаем user ID (самое важное для синхронизации)
+let userId = tg.initDataUnsafe?.user?.id?.toString() || 'guest_' + Date.now();
+const SAVE_PATH = `saves/${userId}`;
+
+// ── Firebase ─────────────────────────────────────────────────────
+const firebaseConfig = {
+  // ВСТАВЬТЕ_СВОЙ_FIREBASE_CONFIG_СЮДА
+  // пример:
+  // apiKey: "AIzaSy...",
+  // authDomain: "your-project.firebaseapp.com",
+  // databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+  // projectId: "your-project",
+  // storageBucket: "your-project.appspot.com",
+  // messagingSenderId: "...",
+  // appId: "..."
+};
+
+let database;
+try {
+  firebase.initializeApp(firebaseConfig);
+  database = firebase.database();
+} catch (e) {
+  console.error("Firebase init error:", e);
+  alert("Ошибка подключения к сохранению. Прогресс сохранится только локально.");
 }
 
-const useCloud = !!(tg && tg.CloudStorage);
-// Уникальный ключ на каждого пользователя Telegram
-const userId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : 'guest';
-const SAVE_KEY = 'pclick_v3_' + userId;
-
-// ── Базовые данные (никогда не меняются) ─────────────────────────
+// ── Базовые данные ───────────────────────────────────────────────
 const BASE_UPGRADES = [
   { name:'Усилитель',   desc:'+1 за клик',   cost:50,     clickBonus:1   },
   { name:'Суперзаряд',  desc:'+5 за клик',   cost:300,    clickBonus:5   },
@@ -170,27 +197,23 @@ const BASE_GENERATORS = [
   { name:'Тёмная энергия',   desc:'+1000/сек', cost:150000, perSec:1000 },
 ];
 
-// Множители роста цены
 const U_MULT = 2.2;
 const G_MULT = 1.8;
 
-// Функция вычисления текущей цены по количеству купленных
 function calcCost(baseCost, owned, mult) {
   let c = baseCost;
   for (let i = 0; i < owned; i++) c = Math.floor(c * mult);
   return c;
 }
 
-// ── Состояние игры ───────────────────────────────────────────────
+// ── Состояние ────────────────────────────────────────────────────
 let score         = 0;
 let totalClicks   = 0;
 let totalEarned   = 0;
 let prestigeCount = 0;
 let prestigeMulti = 1;
-
-// owned[i] — сколько раз куплен апгрейд/генератор
-let uOwned = [0, 0, 0, 0, 0];
-let gOwned = [0, 0, 0, 0, 0];
+let uOwned = [0,0,0,0,0];
+let gOwned = [0,0,0,0,0];
 
 // ── Геттеры ──────────────────────────────────────────────────────
 function getClickPower() {
@@ -215,90 +238,86 @@ function fmt(n) {
   return '' + n;
 }
 
-// ── Сохранение ───────────────────────────────────────────────────
+// ── Сохранение / Загрузка ────────────────────────────────────────
 function buildSave() {
-  return JSON.stringify({
-    v: 3,
+  return {
+    v: 4,
     score, totalClicks, totalEarned,
     prestigeCount, prestigeMulti,
-    uOwned, gOwned
-  });
+    uOwned, gOwned,
+    timestamp: Date.now()
+  };
 }
 
-function applySave(raw) {
-  try {
-    const d = JSON.parse(raw);
-    score         = Number(d.score)         || 0;
-    totalClicks   = Number(d.totalClicks)   || 0;
-    totalEarned   = Number(d.totalEarned)   || 0;
-    prestigeCount = Number(d.prestigeCount) || 0;
-    prestigeMulti = Number(d.prestigeMulti) || 1;
-    if (Array.isArray(d.uOwned)) uOwned = d.uOwned.map(x => Number(x)||0);
-    if (Array.isArray(d.gOwned)) gOwned = d.gOwned.map(x => Number(x)||0);
-  } catch(e) {
-    console.log('Save parse error:', e);
-  }
-}
-
-let saveTimer = null;
-function scheduleSave() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(doSave, 3000);
+function applySave(data) {
+  if (!data || data.v !== 4) return;
+  score         = Number(data.score)         || 0;
+  totalClicks   = Number(data.totalClicks)   || 0;
+  totalEarned   = Number(data.totalEarned)   || 0;
+  prestigeCount = Number(data.prestigeCount) || 0;
+  prestigeMulti = Number(data.prestigeMulti) || 1;
+  uOwned = Array.isArray(data.uOwned) ? data.uOwned.map(x => Number(x)||0) : [0,0,0,0,0];
+  gOwned = Array.isArray(data.gOwned) ? data.gOwned.map(x => Number(x)||0) : [0,0,0,0,0];
 }
 
 function setDot(cls) {
   const d = document.getElementById('save-dot');
-  d.className = 'save-dot ' + cls;
+  d.className = 'save-dot ' + (cls || '');
   if (cls) setTimeout(() => d.className = 'save-dot', 2500);
 }
 
-function doSave() {
+async function doSave() {
   const data = buildSave();
   setDot('saving');
-  // Всегда сохраняем в localStorage как резерв
-  try { localStorage.setItem(SAVE_KEY, data); } catch(_){}
-  if (useCloud) {
-    tg.CloudStorage.setItem(SAVE_KEY, data, err => {
-      if (err) { setDot('error'); }
-      else setDot('saved');
-    });
+
+  if (database) {
+    try {
+      await database.ref(SAVE_PATH).set(data);
+      setDot('saved');
+      localStorage.setItem('pclick_last', JSON.stringify(data)); // резерв
+    } catch (e) {
+      console.error("Firebase save error:", e);
+      setDot('error');
+      try { localStorage.setItem('pclick_last', JSON.stringify(data)); } catch(_) {}
+    }
   } else {
+    try { localStorage.setItem('pclick_last', JSON.stringify(data)); } catch(_) {}
     setDot('saved');
   }
 }
 
-function loadSave(cb) {
-  if (useCloud) {
-    tg.CloudStorage.getItem(SAVE_KEY, (err, val) => {
-      if (!err && val && val.length > 2) {
-        applySave(val);
-      } else {
-        // Fallback: попробуем без userId (старый формат)
-        const oldKey = 'pclick_v3';
-        tg.CloudStorage.getItem(oldKey, (err2, val2) => {
-          if (!err2 && val2 && val2.length > 2) applySave(val2);
-          else { const l = localStorage.getItem(SAVE_KEY) || localStorage.getItem('pclick_v3'); if (l) applySave(l); }
-          cb();
-        });
-        return;
+async function loadSave() {
+  if (database) {
+    try {
+      const snap = await database.ref(SAVE_PATH).once('value');
+      const data = snap.val();
+      if (data) {
+        applySave(data);
+        return true;
       }
-      cb();
-    });
-  } else {
-    const l = localStorage.getItem(SAVE_KEY) || localStorage.getItem('pclick_v3');
-    if (l) applySave(l);
-    cb();
+    } catch (e) {
+      console.error("Firebase load error:", e);
+    }
   }
+
+  // fallback local
+  try {
+    const raw = localStorage.getItem('pclick_last');
+    if (raw) {
+      applySave(JSON.parse(raw));
+      return true;
+    }
+  } catch (_) {}
+  return false;
 }
 
-// ── Игровые действия ─────────────────────────────────────────────
+// ── Игровые функции ──────────────────────────────────────────────
 function handleClick(e) {
   const power = getClickPower();
-  score       += power;
+  score += power;
   totalClicks++;
   totalEarned += power;
 
-  // Анимация числа
   const el = document.createElement('div');
   el.className = 'float-text';
   el.textContent = '+' + fmt(power);
@@ -311,13 +330,7 @@ function handleClick(e) {
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 850);
 
-  // Анимация кнопки
-  const btn = document.getElementById('click-btn');
-  btn.style.transform = 'scale(0.90)';
-  btn.style.boxShadow = '0 0 60px #00ffccaa,inset 0 0 30px #00ffcc22';
-  setTimeout(() => { btn.style.transform = ''; btn.style.boxShadow = ''; }, 80);
-
-  scheduleSave();
+  doSave(); // немедленное сохранение после клика
   updateUI();
 }
 
@@ -328,7 +341,7 @@ function buyUpgrade(idx) {
   score -= cost;
   uOwned[idx]++;
   notify('⚡ ' + base.name + ' куплено!');
-  doSave(); // сохраняем сразу
+  doSave();
   updateUI();
 }
 
@@ -339,7 +352,7 @@ function buyGenerator(idx) {
   score -= cost;
   gOwned[idx]++;
   notify('◈ ' + base.name + ' активирован!');
-  doSave(); // сохраняем сразу
+  doSave();
   updateUI();
 }
 
@@ -350,12 +363,11 @@ function doPrestige() {
   prestigeCount++;
   prestigeMulti = 1 + prestigeCount * 0.5;
 
-  // Полный сброс
-  score       = 0;
+  score = 0;
   totalEarned = 0;
   totalClicks = 0;
-  uOwned      = [0, 0, 0, 0, 0];
-  gOwned      = [0, 0, 0, 0, 0];
+  uOwned = [0,0,0,0,0];
+  gOwned = [0,0,0,0,0];
 
   notify('🌟 PRESTIGE x' + prestigeCount + '! Множитель x' + prestigeMulti);
   doSave();
@@ -380,111 +392,97 @@ function switchTab(name, btn) {
 
 // ── Отрисовка ────────────────────────────────────────────────────
 function updateUI() {
-  // Счёт
   const scoreEl = document.getElementById('score');
   scoreEl.textContent = fmt(score);
   scoreEl.classList.remove('bump');
-  void scoreEl.offsetWidth; // reflow для перезапуска анимации
+  void scoreEl.offsetWidth;
   scoreEl.classList.add('bump');
   setTimeout(() => scoreEl.classList.remove('bump'), 60);
 
   document.getElementById('per-sec').textContent = '+' + fmt(getPerSec()) + ' / сек';
   document.getElementById('click-info').textContent = 'за клик: +' + fmt(getClickPower());
 
-  // Улучшения
+  // upgrades
   const ul = document.getElementById('upgrades-list');
   ul.innerHTML = '';
   BASE_UPGRADES.forEach((base, i) => {
     const cost = calcCost(base.cost, uOwned[i], U_MULT);
-    const canBuy = score >= cost;
     const btn = document.createElement('button');
-    btn.className = 'item-btn' + (canBuy ? '' : ' locked');
-    btn.innerHTML =
-      '<div class="item-left">' +
-        '<span class="item-name">' + base.name + '</span>' +
-        '<span class="item-desc">' + base.desc + '</span>' +
-        (uOwned[i] > 0 ? '<span class="item-owned">куплено: ' + uOwned[i] + '</span>' : '') +
-      '</div>' +
-      '<span class="item-cost">' + fmt(cost) + ' ⚡</span>';
-    btn.addEventListener('click', () => buyUpgrade(i));
+    btn.className = 'item-btn' + (score >= cost ? '' : ' locked');
+    btn.innerHTML = `
+      <div class="item-left">
+        <span class="item-name">${base.name}</span>
+        <span class="item-desc">${base.desc}</span>
+        ${uOwned[i] > 0 ? `<span class="item-owned">куплено: ${uOwned[i]}</span>` : ''}
+      </div>
+      <span class="item-cost">${fmt(cost)} ⚡</span>`;
+    btn.onclick = () => buyUpgrade(i);
     ul.appendChild(btn);
   });
 
-  // Генераторы
+  // generators
   const gl = document.getElementById('auto-list');
   gl.innerHTML = '';
   BASE_GENERATORS.forEach((base, i) => {
     const cost = calcCost(base.cost, gOwned[i], G_MULT);
-    const canBuy = score >= cost;
     const btn = document.createElement('button');
-    btn.className = 'item-btn' + (canBuy ? '' : ' locked');
-    btn.innerHTML =
-      '<div class="item-left">' +
-        '<span class="item-name">' + base.name + '</span>' +
-        '<span class="item-desc">' + base.desc + '</span>' +
-        (gOwned[i] > 0 ? '<span class="item-owned">активно: ' + gOwned[i] + '</span>' : '') +
-      '</div>' +
-      '<span class="item-cost">' + fmt(cost) + ' ⚡</span>';
-    btn.addEventListener('click', () => buyGenerator(i));
+    btn.className = 'item-btn' + (score >= cost ? '' : ' locked');
+    btn.innerHTML = `
+      <div class="item-left">
+        <span class="item-name">${base.name}</span>
+        <span class="item-desc">${base.desc}</span>
+        ${gOwned[i] > 0 ? `<span class="item-owned">активно: ${gOwned[i]}</span>` : ''}
+      </div>
+      <span class="item-cost">${fmt(cost)} ⚡</span>`;
+    btn.onclick = () => buyGenerator(i);
     gl.appendChild(btn);
   });
 
-  // Prestige
+  // prestige
   const thr = 1e6 * Math.pow(5, prestigeCount);
   const pb = document.getElementById('prestige-btn');
   if (totalEarned >= thr) pb.removeAttribute('disabled');
-  else pb.setAttribute('disabled', '');
-  pb.textContent = '◈ PRESTIGE (нужно ' + fmt(thr) + ' ⚡)';
+  else pb.setAttribute('disabled', true);
+  pb.textContent = `◈ PRESTIGE (нужно ${fmt(thr)} ⚡)`;
   document.getElementById('prestige-info').innerHTML = prestigeCount
-    ? 'Prestige: ' + prestigeCount + '  ·  Множитель: x' + prestigeMulti + '<br>Накоплено: ' + fmt(totalEarned) + ' / ' + fmt(thr)
-    : 'Накопи ' + fmt(thr) + ' ⚡ для Prestige';
+    ? `Prestige: ${prestigeCount}  ·  Множитель: x${prestigeMulti}<br>Накоплено: ${fmt(totalEarned)} / ${fmt(thr)}`
+    : `Накопи ${fmt(thr)} ⚡ для Prestige`;
 
-  // Статистика
-  document.getElementById('stats-list').innerHTML =
-    '<div class="stat-row"><span class="stat-label">Энергия</span><span class="stat-val">' + fmt(score) + ' ⚡</span></div>' +
-    '<div class="stat-row"><span class="stat-label">Всего накоплено</span><span class="stat-val">' + fmt(totalEarned) + ' ⚡</span></div>' +
-    '<div class="stat-row"><span class="stat-label">Кликов</span><span class="stat-val">' + fmt(totalClicks) + '</span></div>' +
-    '<div class="stat-row"><span class="stat-label">За клик</span><span class="stat-val">+' + fmt(getClickPower()) + ' ⚡</span></div>' +
-    '<div class="stat-row"><span class="stat-label">В секунду</span><span class="stat-val">+' + fmt(getPerSec()) + ' ⚡</span></div>' +
-    '<div class="stat-row"><span class="stat-label">Prestige</span><span class="stat-val">' + prestigeCount + 'x</span></div>' +
-    '<div class="stat-row"><span class="stat-label">Множитель</span><span class="stat-val">x' + prestigeMulti + '</span></div>' +
-    '<div class="stat-row"><span class="stat-label">Облако</span><span class="stat-val">' + (useCloud ? '✓ Telegram' : 'localStorage') + '</span></div>' +
-    '<div class="stat-row"><span class="stat-label">User ID</span><span class="stat-val">' + userId + '</span></div>';
+  // stats
+  document.getElementById('stats-list').innerHTML = `
+    <div class="stat-row"><span class="stat-label">User ID</span><span class="stat-val">${userId}</span></div>
+    <div class="stat-row"><span class="stat-label">Энергия</span><span class="stat-val">${fmt(score)} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">Всего накоплено</span><span class="stat-val">${fmt(totalEarned)} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">Кликов</span><span class="stat-val">${fmt(totalClicks)}</span></div>
+    <div class="stat-row"><span class="stat-label">За клик</span><span class="stat-val">+${fmt(getClickPower())} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">В секунду</span><span class="stat-val">+${fmt(getPerSec())} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">Prestige</span><span class="stat-val">${prestigeCount}x</span></div>
+    <div class="stat-row"><span class="stat-label">Множитель</span><span class="stat-val">x${prestigeMulti}</span></div>
+    <div class="stat-row"><span class="stat-label">Сохранение</span><span class="stat-val">${database ? 'Firebase' : 'local'}</span></div>`;
 }
 
-// ── Автотик ──────────────────────────────────────────────────────
+// ── Автотик + автосохранение ─────────────────────────────────────
 setInterval(() => {
   const ps = getPerSec();
   if (ps > 0) {
     const gain = ps / 20;
-    score       += gain;
+    score += gain;
     totalEarned += gain;
     updateUI();
   }
 }, 50);
 
-// Сохранять каждые 10 секунд
-setInterval(doSave, 10000);
+setInterval(doSave, 15000); // каждые 15 сек
 
-// Стандартные браузерные события закрытия
-window.addEventListener('beforeunload', doSave);
-window.addEventListener('pagehide', doSave);
-window.addEventListener('blur', doSave);
-
-// Page Visibility — главное событие в Telegram
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') doSave();
 });
 
-// Telegram-специфичные события
-if (tg) {
-  tg.onEvent('viewportChanged', doSave);
-}
-
 // ── Старт ────────────────────────────────────────────────────────
-loadSave(() => {
+loadSave().then(() => {
   document.getElementById('loading-screen').style.display = 'none';
   updateUI();
+  doSave(); // первое сохранение после загрузки
 });
 </script>
 </body>
