@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ POWER CLICKER</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050510;
+    --accent: #00ffcc;
+    --accent2: #ff00aa;
+    --accent3: #ffee00;
+    --glow: 0 0 20px #00ffcc88;
+    --panel: #0a0a1f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,204,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,204,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(1.2rem, 4vw, 2rem);
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 0.65rem;
+    color: #00ffcc44;
+    letter-spacing: 0.2em;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .save-status {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: #00ffcc44;
+    text-align: center;
+    margin-bottom: 10px;
+    min-height: 14px;
+    transition: color 0.3s;
+  }
+  .save-status.saving { color: var(--accent3); }
+  .save-status.saved  { color: var(--accent); }
+  .save-status.error  { color: var(--accent2); }
+
+  .game-wrap {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 860px;
+    padding: 0 12px;
+  }
+
+  .score-panel {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .score-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.3em;
+    color: #00ffcc55;
+  }
+
+  .score {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 30px #00ffcc, 0 0 60px #00ffcc55;
+    line-height: 1;
+    transition: transform 0.05s;
+  }
+
+  .score.bump { transform: scale(1.07); }
+
+  .per-sec {
+    font-size: 0.72rem;
+    color: var(--accent2);
+    text-shadow: 0 0 10px var(--accent2);
+    letter-spacing: 0.12em;
+  }
+
+  .btn-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .click-btn {
+    width: 170px;
+    height: 170px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    background: radial-gradient(circle at 40% 35%, #001a14, #000508);
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.8rem;
+    box-shadow: 0 0 30px #00ffcc44, inset 0 0 30px #00ffcc11;
+    transition: transform 0.08s, box-shadow 0.08s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .click-btn:active, .click-btn.clicked {
+    transform: scale(0.91);
+    box-shadow: 0 0 80px #00ffccaa, inset 0 0 40px #00ffcc33;
+  }
+
+  .click-btn::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    opacity: 0;
+    animation: ring-idle 3s ease-in-out infinite;
+  }
+
+  @keyframes ring-idle {
+    0%, 100% { opacity: 0; transform: scale(1); }
+    50% { opacity: 0.25; transform: scale(1.05); }
+  }
+
+  .float-text {
+    position: fixed;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 100;
+    animation: floatUp 0.9s ease-out forwards;
+  }
+
+  @keyframes floatUp {
+    0%   { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-80px) scale(0.5); }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid #00ffcc18;
+    border-radius: 4px;
+    padding: 14px;
+    min-width: 230px;
+    max-width: 270px;
+    flex: 1;
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.22em;
+    color: #00ffcc44;
+    border-bottom: 1px solid #00ffcc18;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+
+  .upgrade-btn {
+    width: 100%;
+    background: #000;
+    border: 1px solid #00ffcc28;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    padding: 9px 10px;
+    margin-bottom: 7px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: left;
+  }
+
+  .upgrade-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #00ffcc08;
+  }
+
+  .upgrade-btn:disabled { opacity: 0.28; cursor: not-allowed; }
+  .upgrade-btn .upg-left { display: flex; flex-direction: column; gap: 2px; }
+  .upgrade-btn .upg-name { color: var(--accent); }
+  .upgrade-btn .upg-desc { font-size: 0.58rem; color: #00ffcc44; }
+  .upgrade-btn .upg-owned { font-size: 0.58rem; color: var(--accent2); }
+  .upgrade-btn .upg-cost { color: var(--accent3); white-space: nowrap; font-size: 0.68rem; }
+
+  .prestige-btn {
+    width: 100%;
+    margin-top: 10px;
+    background: linear-gradient(135deg, #1a0020, #0a000f);
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    padding: 10px;
+    cursor: pointer;
+    text-shadow: 0 0 10px var(--accent2);
+    box-shadow: 0 0 15px #ff00aa18;
+    transition: all 0.2s;
+  }
+
+  .prestige-btn:hover:not(:disabled) {
+    box-shadow: 0 0 30px #ff00aa44;
+    background: linear-gradient(135deg, #2a0030, #1a000f);
+  }
+
+  .prestige-btn:disabled { opacity: 0.22; cursor: not-allowed; }
+
+  .prestige-count {
+    font-size: 0.58rem;
+    color: var(--accent2);
+    text-align: center;
+    margin-top: 4px;
+    text-shadow: 0 0 8px var(--accent2);
+  }
+
+  .stats {
+    font-size: 0.62rem;
+    color: #00ffcc44;
+    text-align: center;
+    margin-top: 4px;
+    letter-spacing: 0.1em;
+    line-height: 1.9;
+  }
+
+  .corner {
+    position: fixed;
+    width: 50px;
+    height: 50px;
+    border-color: #00ffcc18;
+    border-style: solid;
+  }
+  .corner.tl { top: 14px; left: 14px; border-width: 2px 0 0 2px; }
+  .corner.tr { top: 14px; right: 14px; border-width: 2px 2px 0 0; }
+  .corner.bl { bottom: 14px; left: 14px; border-width: 0 0 2px 2px; }
+  .corner.br { bottom: 14px; right: 14px; border-width: 0 2px 2px 0; }
+
+  .notif {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0a0a1f;
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    padding: 8px 18px;
+    z-index: 200;
+    animation: notifAnim 2s ease forwards;
+    text-shadow: 0 0 10px var(--accent3);
+    white-space: nowrap;
+  }
+
+  @keyframes notifAnim {
+    0%   { opacity: 0; top: 0px; }
+    15%  { opacity: 1; top: 20px; }
+    75%  { opacity: 1; top: 20px; }
+    100% { opacity: 0; top: 0px; }
+  }
+
+  #loading-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    gap: 16px;
+  }
+
+  .loading-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    animation: blink 1s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  @media (max-width: 600px) {
+    .click-btn { width: 130px; height: 130px; font-size: 3rem; }
+    .panel { min-width: 100%; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div style="font-size:3rem">⚡</div>
+  <div class="loading-text">ЗАГРУЗКА СОХРАНЕНИЯ...</div>
+</div>
+
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<h1>⚡ POWER CLICKER</h1>
+<div class="subtitle">// НАЖИМАЙ · УЛУЧШАЙ · ДОМИНИРУЙ //</div>
+<div class="save-status" id="save-status">подключение к облаку...</div>
+
+<div class="game-wrap">
+
+  <div class="panel">
+    <div class="panel-title">▸ УЛУЧШЕНИЯ</div>
+    <div id="upgrades-list"></div>
+  </div>
+
+  <div class="btn-wrap">
+    <div class="score-panel">
+      <div class="score-label">ЭНЕРГИЯ</div>
+      <div class="score" id="score">0</div>
+      <div class="per-sec" id="per-sec">+0 / сек</div>
+    </div>
+    <button class="click-btn" id="click-btn" onclick="handleClick(event)">⚡</button>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">▸ ГЕНЕРАТОРЫ</div>
+    <div id="auto-list"></div>
+    <button class="prestige-btn" id="prestige-btn" onclick="prestige()">◈ PRESTIGE</button>
+    <div class="prestige-count" id="prestige-count"></div>
+  </div>
+
+</div>
+
+<script>
+// ─── Telegram WebApp init ───────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) tg.expand();
+
+// Определяем метод сохранения
+const useCloud = !!(tg && tg.CloudStorage);
+const SAVE_KEY = 'powerclicker_v1';
+
+// ─── Game state ─────────────────────────────────────────────────
+let score = 0;
+let totalClicks = 0;
+let totalEarned = 0;
+let prestigeCount = 0;
+let prestigeMulti = 1;
+
+const UPGRADE_DEFAULTS = [
+  { id:'u1', name:'Усилитель',   desc:'+1 за клик',   baseCost:50,     clickBonus:1   },
+  { id:'u2', name:'Суперзаряд',  desc:'+5 за клик',   baseCost:300,    clickBonus:5   },
+  { id:'u3', name:'Молния',      desc:'+20 за клик',  baseCost:2000,   clickBonus:20  },
+  { id:'u4', name:'Плазма',      desc:'+100 за клик', baseCost:15000,  clickBonus:100 },
+  { id:'u5', name:'Антиматерия', desc:'+500 за клик', baseCost:100000, clickBonus:500 },
+];
+
+const GENERATOR_DEFAULTS = [
+  { id:'g1', name:'Батарейка',       desc:'+1/сек',    baseCost:100,    perSec:1    },
+  { id:'g2', name:'Солнечная панель',desc:'+5/сек',    baseCost:500,    perSec:5    },
+  { id:'g3', name:'Реактор',         desc:'+25/сек',   baseCost:3000,   perSec:25   },
+  { id:'g4', name:'Термоядерный',    desc:'+150/сек',  baseCost:20000,  perSec:150  },
+  { id:'g5', name:'Тёмная энергия',  desc:'+1000/сек', baseCost:150000, perSec:1000 },
+];
+
+let upgrades   = UPGRADE_DEFAULTS.map(u => ({ ...u, owned: 0, cost: u.baseCost }));
+let generators = GENERATOR_DEFAULTS.map(g => ({ ...g, owned: 0, cost: g.baseCost }));
+
+// ─── Save / Load ─────────────────────────────────────────────────
+function buildSave() {
+  return JSON.stringify({
+    score, totalClicks, totalEarned, prestigeCount, prestigeMulti,
+    upgrades:   upgrades.map(u => ({ owned: u.owned, cost: u.cost })),
+    generators: generators.map(g => ({ owned: g.owned, cost: g.cost })),
+  });
+}
+
+function applySave(raw) {
+  try {
+    const d = JSON.parse(raw);
+    score         = d.score         || 0;
+    totalClicks   = d.totalClicks   || 0;
+    totalEarned   = d.totalEarned   || 0;
+    prestigeCount = d.prestigeCount || 0;
+    prestigeMulti = d.prestigeMulti || 1;
+    if (d.upgrades)   d.upgrades.forEach((u,i)   => { upgrades[i].owned   = u.owned;   upgrades[i].cost   = u.cost;   });
+    if (d.generators) d.generators.forEach((g,i) => { generators[i].owned = g.owned;   generators[i].cost = g.cost;   });
+  } catch(e) { /* новая игра */ }
+}
+
+let saveTimer = null;
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 3000); // сохраняем через 3 сек после последнего действия
+}
+
+function doSave() {
+  const data = buildSave();
+  setSaveStatus('saving', '💾 сохранение...');
+
+  if (useCloud) {
+    tg.CloudStorage.setItem(SAVE_KEY, data, (err) => {
+      if (err) {
+        // Fallback to localStorage
+        try { localStorage.setItem(SAVE_KEY, data); } catch(_){}
+        setSaveStatus('error', '⚠ облако недоступно, сохранено локально');
+      } else {
+        setSaveStatus('saved', '✓ сохранено в Telegram Cloud');
+      }
+      setTimeout(() => setSaveStatus('', ''), 3000);
+    });
+  } else {
+    try { localStorage.setItem(SAVE_KEY, data); } catch(_){}
+    setSaveStatus('saved', '✓ сохранено локально');
+    setTimeout(() => setSaveStatus('', ''), 2000);
+  }
+}
+
+function loadSave(callback) {
+  if (useCloud) {
+    tg.CloudStorage.getItem(SAVE_KEY, (err, value) => {
+      if (!err && value) {
+        applySave(value);
+        setSaveStatus('saved', '✓ прогресс загружен из Telegram Cloud');
+      } else {
+        // Fallback: попробуем localStorage
+        const local = localStorage.getItem(SAVE_KEY);
+        if (local) { applySave(local); setSaveStatus('saved', '✓ загружено локально'); }
+        else setSaveStatus('', '▸ новая игра');
+      }
+      setTimeout(() => setSaveStatus('', ''), 3000);
+      callback();
+    });
+  } else {
+    const local = localStorage.getItem(SAVE_KEY);
+    if (local) { applySave(local); setSaveStatus('saved', '✓ загружено (localStorage)'); }
+    else setSaveStatus('', '▸ новая игра');
+    setTimeout(() => setSaveStatus('', ''), 2000);
+    callback();
+  }
+}
+
+function setSaveStatus(cls, text) {
+  const el = document.getElementById('save-status');
+  el.className = 'save-status ' + cls;
+  el.textContent = text;
+}
+
+// ─── Game logic ──────────────────────────────────────────────────
+function getClickPower() {
+  return Math.floor((1 + upgrades.reduce((s, u) => s + u.clickBonus * u.owned, 0)) * prestigeMulti);
+}
+
+function getPerSec() {
+  return Math.floor(generators.reduce((s, g) => s + g.perSec * g.owned, 0) * prestigeMulti);
+}
+
+function fmt(n) {
+  n = Math.floor(n);
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toString();
+}
+
+function handleClick(e) {
+  const power = getClickPower();
+  score       += power;
+  totalClicks++;
+  totalEarned += power;
+
+  const el = document.createElement('div');
+  el.className = 'float-text';
+  el.textContent = '+' + fmt(power);
+  el.style.left = (e.clientX - 20) + 'px';
+  el.style.top  = (e.clientY - 20) + 'px';
+  const col = Math.random() > 0.5 ? '#00ffcc' : '#ffee00';
+  el.style.color = col;
+  el.style.textShadow = `0 0 10px ${col}`;
+  el.style.fontSize = Math.min(0.8 + power / 50, 2.2) + 'rem';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 900);
+
+  const btn = document.getElementById('click-btn');
+  btn.classList.add('clicked');
+  setTimeout(() => btn.classList.remove('clicked'), 80);
+
+  scheduleSave();
+  updateUI();
+}
+
+function buyUpgrade(i) {
+  const u = upgrades[i];
+  if (score < u.cost) return;
+  score   -= u.cost;
+  u.owned++;
+  u.cost   = Math.floor(u.cost * 2.2);
+  notify('⚡ ' + u.name + ' куплено!');
+  scheduleSave();
+  updateUI();
+}
+
+function buyGenerator(i) {
+  const g = generators[i];
+  if (score < g.cost) return;
+  score   -= g.cost;
+  g.owned++;
+  g.cost   = Math.floor(g.cost * 1.8);
+  notify('◈ ' + g.name + ' активирован!');
+  scheduleSave();
+  updateUI();
+}
+
+function prestige() {
+  const threshold = 1e6 * Math.pow(5, prestigeCount);
+  if (totalEarned < threshold) return;
+  prestigeCount++;
+  prestigeMulti  = 1 + prestigeCount * 0.5;
+  score          = 0;
+  totalEarned    = 0;
+  totalClicks    = 0;
+  upgrades   = UPGRADE_DEFAULTS.map(u => ({ ...u, owned: 0, cost: u.baseCost }));
+  generators = GENERATOR_DEFAULTS.map(g => ({ ...g, owned: 0, cost: g.baseCost }));
+  notify('🌟 PRESTIGE x' + prestigeCount + '! Множитель x' + prestigeMulti);
+  doSave(); // немедленно сохраняем prestige
+  updateUI();
+}
+
+function notify(msg) {
+  const old = document.querySelector('.notif');
+  if (old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'notif';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
+
+// ─── UI ──────────────────────────────────────────────────────────
+function updateUI() {
+  const scoreEl = document.getElementById('score');
+  scoreEl.textContent = fmt(score);
+  scoreEl.classList.add('bump');
+  setTimeout(() => scoreEl.classList.remove('bump'), 60);
+
+  document.getElementById('per-sec').textContent = '+' + fmt(getPerSec()) + ' / сек';
+  document.getElementById('stats').innerHTML =
+    `Кликов: ${fmt(totalClicks)}<br>Всего: ${fmt(totalEarned)}<br>За клик: +${fmt(getClickPower())}`;
+
+  // Upgrades
+  const ul = document.getElementById('upgrades-list');
+  ul.innerHTML = '';
+  upgrades.forEach((u, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'upgrade-btn';
+    btn.disabled  = score < u.cost;
+    btn.innerHTML = `
+      <div class="upg-left">
+        <span class="upg-name">${u.name}</span>
+        <span class="upg-desc">${u.desc}</span>
+        ${u.owned ? `<span class="upg-owned">▸ куплено: ${u.owned}</span>` : ''}
+      </div>
+      <span class="upg-cost">${fmt(u.cost)} ⚡</span>`;
+    btn.onclick = () => buyUpgrade(i);
+    ul.appendChild(btn);
+  });
+
+  // Generators
+  const gl = document.getElementById('auto-list');
+  gl.innerHTML = '';
+  generators.forEach((g, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'upgrade-btn';
+    btn.disabled  = score < g.cost;
+    btn.innerHTML = `
+      <div class="upg-left">
+        <span class="upg-name">${g.name}</span>
+        <span class="upg-desc">${g.desc}</span>
+        ${g.owned ? `<span class="upg-owned">▸ активно: ${g.owned}</span>` : ''}
+      </div>
+      <span class="upg-cost">${fmt(g.cost)} ⚡</span>`;
+    btn.onclick = () => buyGenerator(i);
+    gl.appendChild(btn);
+  });
+
+  // Prestige
+  const threshold = 1e6 * Math.pow(5, prestigeCount);
+  const pb = document.getElementById('prestige-btn');
+  pb.disabled    = totalEarned < threshold;
+  pb.textContent = `◈ PRESTIGE (${fmt(threshold)} ⚡)`;
+  document.getElementById('prestige-count').textContent =
+    prestigeCount ? `Prestige: ${prestigeCount}x  |  Множитель: x${prestigeMulti}` : '';
+}
+
+// ─── Auto tick ───────────────────────────────────────────────────
+setInterval(() => {
+  const ps = getPerSec();
+  if (ps > 0) {
+    const gain = ps / 20;
+    score       += gain;
+    totalEarned += gain;
+    updateUI();
+  }
+}, 50);
+
+// Автосохранение каждые 30 сек
+setInterval(doSave, 30000);
+
+// Сохранение при закрытии/уходе
+window.addEventListener('beforeunload', doSave);
+if (tg) tg.onEvent('viewportChanged', doSave);
+
+// ─── Start ───────────────────────────────────────────────────────
+loadSave(() => {
+  document.getElementById('loading-screen').style.display = 'none';
+  updateUI();
+});
+</script>
+</body>
+</html>
