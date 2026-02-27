@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>⚡ POWER CLICKER</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050510;
+    --accent: #00ffcc;
+    --accent2: #ff00aa;
+    --accent3: #ffee00;
+    --panel: #0a0a1f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,204,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,204,0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px 4px;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 1rem;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-shadow: 0 0 15px #00ffcc88;
+  }
+
+  .save-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #00ffcc22;
+    transition: background 0.4s, box-shadow 0.4s;
+  }
+  .save-dot.saving { background: var(--accent3); box-shadow: 0 0 8px var(--accent3); }
+  .save-dot.saved  { background: var(--accent);  box-shadow: 0 0 8px var(--accent); }
+  .save-dot.error  { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+
+  /* CENTER */
+  .center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 6px 0 10px;
+    gap: 5px;
+  }
+
+  .score-label {
+    font-size: 0.52rem;
+    letter-spacing: 0.3em;
+    color: #00ffcc33;
+  }
+
+  .score {
+    font-family: 'Orbitron', monospace;
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 25px #00ffcc99;
+    line-height: 1;
+    transition: transform 0.05s;
+  }
+  .score.bump { transform: scale(1.06); }
+
+  .per-sec {
+    font-size: 0.62rem;
+    color: var(--accent2);
+    text-shadow: 0 0 8px var(--accent2);
+    letter-spacing: 0.1em;
+  }
+
+  .click-btn {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: radial-gradient(circle at 40% 35%, #001a14, #000508);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.2rem;
+    box-shadow: 0 0 25px #00ffcc44, inset 0 0 25px #00ffcc0d;
+    transition: transform 0.07s, box-shadow 0.07s;
+    user-select: none;
+    position: relative;
+  }
+
+  .click-btn::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+    opacity: 0;
+    animation: ring 3s ease-in-out infinite;
+  }
+  @keyframes ring {
+    0%,100%{opacity:0;transform:scale(1)}
+    50%{opacity:0.2;transform:scale(1.05)}
+  }
+
+  .click-btn:active, .click-btn.clicked {
+    transform: scale(0.90);
+    box-shadow: 0 0 60px #00ffccaa, inset 0 0 30px #00ffcc22;
+  }
+
+  .click-info {
+    font-size: 0.56rem;
+    color: #00ffcc33;
+    letter-spacing: 0.1em;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    border-top: 1px solid #00ffcc18;
+    border-bottom: 1px solid #00ffcc18;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #00ffcc44;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.52rem;
+    letter-spacing: 0.12em;
+    padding: 8px 2px;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+    text-transform: uppercase;
+  }
+  .tab.active {
+    color: var(--accent);
+    background: #00ffcc0a;
+    text-shadow: 0 0 8px var(--accent);
+  }
+
+  /* PANELS */
+  .panels { flex: 1; overflow: hidden; position: relative; }
+
+  .panel {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 8px 10px 16px;
+    display: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .panel.active { display: block; }
+  .panel::-webkit-scrollbar { width: 3px; }
+  .panel::-webkit-scrollbar-thumb { background: #00ffcc22; border-radius: 2px; }
+
+  /* ITEMS */
+  .item-btn {
+    width: 100%;
+    background: #000;
+    border: 1px solid #00ffcc18;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: left;
+    border-radius: 2px;
+  }
+  .item-btn:active:not(:disabled) { border-color: var(--accent); background: #00ffcc08; }
+  .item-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  .item-left { display: flex; flex-direction: column; gap: 2px; }
+  .item-name { color: var(--accent); font-size: 0.7rem; }
+  .item-desc { font-size: 0.56rem; color: #00ffcc44; }
+  .item-owned { font-size: 0.54rem; color: var(--accent2); }
+  .item-cost { color: var(--accent3); font-size: 0.66rem; white-space: nowrap; padding-left: 8px; }
+
+  /* PRESTIGE */
+  .prestige-wrap { margin-top: 8px; }
+
+  .prestige-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #1a0020, #0a000f);
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+    padding: 12px 8px;
+    cursor: pointer;
+    text-shadow: 0 0 10px var(--accent2);
+    box-shadow: 0 0 12px #ff00aa18;
+    transition: all 0.2s;
+    border-radius: 2px;
+  }
+  .prestige-btn:active:not(:disabled) { box-shadow: 0 0 25px #ff00aa55; }
+  .prestige-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+  .prestige-info {
+    font-size: 0.54rem;
+    color: var(--accent2);
+    text-align: center;
+    margin-top: 5px;
+    line-height: 1.7;
+  }
+
+  /* STATS */
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid #00ffcc0a;
+    font-size: 0.66rem;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: #00ffcc44; }
+  .stat-val   { color: var(--accent); }
+
+  /* FLOAT */
+  .float-text {
+    position: fixed;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 500;
+    animation: floatUp 0.85s ease-out forwards;
+  }
+  @keyframes floatUp {
+    0%{opacity:1;transform:translateY(0) scale(1)}
+    100%{opacity:0;transform:translateY(-65px) scale(0.5)}
+  }
+
+  /* NOTIF */
+  .notif {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0a0a1f;
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    padding: 7px 16px;
+    z-index: 200;
+    animation: notifAnim 2s ease forwards;
+    white-space: nowrap;
+    border-radius: 2px;
+  }
+  @keyframes notifAnim {
+    0%{opacity:0;bottom:4px} 15%{opacity:1;bottom:16px}
+    75%{opacity:1;bottom:16px} 100%{opacity:0;bottom:4px}
+  }
+
+  /* LOADING */
+  #loading-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 1000; gap: 14px;
+  }
+  .loading-text {
+    font-family: 'Orbitron', monospace; font-size: 0.7rem;
+    letter-spacing: 0.25em; color: var(--accent);
+    animation: blink 1s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div style="font-size:2.5rem">⚡</div>
+  <div class="loading-text">ЗАГРУЗКА...</div>
+</div>
+
+<div class="app">
+
+  <div class="header">
+    <div class="logo">⚡ POWER CLICKER</div>
+    <div class="save-dot" id="save-dot" title="статус сохранения"></div>
+  </div>
+
+  <div class="center">
+    <div class="score-label">ЭНЕРГИЯ</div>
+    <div class="score" id="score">0</div>
+    <div class="per-sec" id="per-sec">+0 / сек</div>
+    <button class="click-btn" id="click-btn" onclick="handleClick(event)">⚡</button>
+    <div class="click-info" id="click-info">за клик: +1</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('upgrades',this)">▸ УЛУЧШЕНИЯ</button>
+    <button class="tab" onclick="switchTab('generators',this)">◈ ГЕНЕРАТОРЫ</button>
+    <button class="tab" onclick="switchTab('stats',this)">≡ СТАТИСТИКА</button>
+  </div>
+
+  <div class="panels">
+
+    <div class="panel active" id="panel-upgrades">
+      <div id="upgrades-list"></div>
+    </div>
+
+    <div class="panel" id="panel-generators">
+      <div id="auto-list"></div>
+      <div class="prestige-wrap">
+        <button class="prestige-btn" id="prestige-btn" onclick="prestige()">◈ PRESTIGE</button>
+        <div class="prestige-info" id="prestige-info"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-stats">
+      <div id="stats-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.expand(); tg.disableVerticalSwipes?.(); }
+
+const useCloud = !!(tg && tg.CloudStorage);
+const SAVE_KEY = 'powerclicker_v1';
+
+let score=0, totalClicks=0, totalEarned=0, prestigeCount=0, prestigeMulti=1;
+
+const UD = [
+  {name:'Усилитель',   desc:'+1 за клик',   baseCost:50,     clickBonus:1},
+  {name:'Суперзаряд',  desc:'+5 за клик',   baseCost:300,    clickBonus:5},
+  {name:'Молния',      desc:'+20 за клик',  baseCost:2000,   clickBonus:20},
+  {name:'Плазма',      desc:'+100 за клик', baseCost:15000,  clickBonus:100},
+  {name:'Антиматерия', desc:'+500 за клик', baseCost:100000, clickBonus:500},
+];
+const GD = [
+  {name:'Батарейка',        desc:'+1/сек',    baseCost:100,    perSec:1},
+  {name:'Солнечная панель', desc:'+5/сек',    baseCost:500,    perSec:5},
+  {name:'Реактор',          desc:'+25/сек',   baseCost:3000,   perSec:25},
+  {name:'Термоядерный',     desc:'+150/сек',  baseCost:20000,  perSec:150},
+  {name:'Тёмная энергия',   desc:'+1000/сек', baseCost:150000, perSec:1000},
+];
+
+let upgrades   = UD.map(u=>({...u,owned:0,cost:u.baseCost}));
+let generators = GD.map(g=>({...g,owned:0,cost:g.baseCost}));
+
+const fmt = n=>{
+  n=Math.floor(n);
+  if(n>=1e9) return (n/1e9).toFixed(2)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return n+'';
+};
+const getClick = ()=>Math.floor((1+upgrades.reduce((s,u)=>s+u.clickBonus*u.owned,0))*prestigeMulti);
+const getPS    = ()=>Math.floor(generators.reduce((s,g)=>s+g.perSec*g.owned,0)*prestigeMulti);
+
+// Save
+const buildSave=()=>JSON.stringify({score,totalClicks,totalEarned,prestigeCount,prestigeMulti,
+  upgrades:upgrades.map(u=>({owned:u.owned,cost:u.cost})),
+  generators:generators.map(g=>({owned:g.owned,cost:g.cost}))});
+
+function applySave(raw){
+  try{
+    const d=JSON.parse(raw);
+    score=d.score||0; totalClicks=d.totalClicks||0; totalEarned=d.totalEarned||0;
+    prestigeCount=d.prestigeCount||0; prestigeMulti=d.prestigeMulti||1;
+    d.upgrades?.forEach((u,i)=>{upgrades[i].owned=u.owned;upgrades[i].cost=u.cost;});
+    d.generators?.forEach((g,i)=>{generators[i].owned=g.owned;generators[i].cost=g.cost;});
+  }catch(e){}
+}
+
+let saveTimer=null;
+const scheduleSave=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(doSave,3000);};
+
+function setDot(cls){
+  const d=document.getElementById('save-dot');
+  d.className='save-dot '+cls;
+  if(cls) setTimeout(()=>d.className='save-dot',3000);
+}
+
+function doSave(){
+  const data=buildSave();
+  setDot('saving');
+  if(useCloud){
+    tg.CloudStorage.setItem(SAVE_KEY,data,err=>{
+      if(err){try{localStorage.setItem(SAVE_KEY,data);}catch(_){}setDot('error');}
+      else setDot('saved');
+    });
+  } else {
+    try{localStorage.setItem(SAVE_KEY,data);}catch(_){}
+    setDot('saved');
+  }
+}
+
+function loadSave(cb){
+  if(useCloud){
+    tg.CloudStorage.getItem(SAVE_KEY,(err,val)=>{
+      if(!err&&val) applySave(val);
+      else{const l=localStorage.getItem(SAVE_KEY);if(l)applySave(l);}
+      cb();
+    });
+  } else {
+    const l=localStorage.getItem(SAVE_KEY);if(l)applySave(l);cb();
+  }
+}
+
+// Game
+function handleClick(e){
+  const power=getClick();
+  score+=power; totalClicks++; totalEarned+=power;
+
+  const el=document.createElement('div');
+  el.className='float-text';
+  el.textContent='+'+fmt(power);
+  el.style.left=(e.clientX-16)+'px';
+  el.style.top=(e.clientY-16)+'px';
+  const col=Math.random()>.5?'#00ffcc':'#ffee00';
+  el.style.color=col; el.style.textShadow=`0 0 8px ${col}`;
+  el.style.fontSize=Math.min(0.75+power/60,1.8)+'rem';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),850);
+
+  const btn=document.getElementById('click-btn');
+  btn.classList.add('clicked');
+  setTimeout(()=>btn.classList.remove('clicked'),75);
+
+  scheduleSave(); updateUI();
+}
+
+function buyUpgrade(i){
+  const u=upgrades[i]; if(score<u.cost)return;
+  score-=u.cost; u.owned++; u.cost=Math.floor(u.cost*2.2);
+  notify('⚡ '+u.name+' куплено!'); scheduleSave(); updateUI();
+}
+function buyGenerator(i){
+  const g=generators[i]; if(score<g.cost)return;
+  score-=g.cost; g.owned++; g.cost=Math.floor(g.cost*1.8);
+  notify('◈ '+g.name+' активирован!'); scheduleSave(); updateUI();
+}
+function prestige(){
+  const thr=1e6*Math.pow(5,prestigeCount);
+  if(totalEarned<thr)return;
+  prestigeCount++; prestigeMulti=1+prestigeCount*0.5;
+  score=0; totalEarned=0; totalClicks=0;
+  upgrades=UD.map(u=>({...u,owned:0,cost:u.baseCost}));
+  generators=GD.map(g=>({...g,owned:0,cost:g.baseCost}));
+  notify('🌟 PRESTIGE x'+prestigeCount+'! x'+prestigeMulti);
+  doSave(); updateUI();
+}
+
+function notify(msg){
+  document.querySelector('.notif')?.remove();
+  const el=document.createElement('div');
+  el.className='notif'; el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),2000);
+}
+
+function switchTab(name,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+function updateUI(){
+  const scoreEl=document.getElementById('score');
+  scoreEl.textContent=fmt(score);
+  scoreEl.classList.add('bump');
+  setTimeout(()=>scoreEl.classList.remove('bump'),55);
+
+  document.getElementById('per-sec').textContent='+'+fmt(getPS())+' / сек';
+  document.getElementById('click-info').textContent='за клик: +'+fmt(getClick());
+
+  const ul=document.getElementById('upgrades-list');
+  ul.innerHTML='';
+  upgrades.forEach((u,i)=>{
+    const btn=document.createElement('button');
+    btn.className='item-btn'; btn.disabled=score<u.cost;
+    btn.innerHTML=`<div class="item-left">
+      <span class="item-name">${u.name}</span>
+      <span class="item-desc">${u.desc}</span>
+      ${u.owned?`<span class="item-owned">куплено: ${u.owned}</span>`:''}
+    </div><span class="item-cost">${fmt(u.cost)} ⚡</span>`;
+    btn.onclick=()=>buyUpgrade(i); ul.appendChild(btn);
+  });
+
+  const gl=document.getElementById('auto-list');
+  gl.innerHTML='';
+  generators.forEach((g,i)=>{
+    const btn=document.createElement('button');
+    btn.className='item-btn'; btn.disabled=score<g.cost;
+    btn.innerHTML=`<div class="item-left">
+      <span class="item-name">${g.name}</span>
+      <span class="item-desc">${g.desc}</span>
+      ${g.owned?`<span class="item-owned">активно: ${g.owned}</span>`:''}
+    </div><span class="item-cost">${fmt(g.cost)} ⚡</span>`;
+    btn.onclick=()=>buyGenerator(i); gl.appendChild(btn);
+  });
+
+  const thr=1e6*Math.pow(5,prestigeCount);
+  const pb=document.getElementById('prestige-btn');
+  pb.disabled=totalEarned<thr;
+  pb.textContent=`◈ PRESTIGE (нужно ${fmt(thr)} ⚡)`;
+  document.getElementById('prestige-info').innerHTML=prestigeCount
+    ?`Prestige: ${prestigeCount}  ·  Множитель: x${prestigeMulti}<br>Накоплено: ${fmt(totalEarned)} / ${fmt(thr)}`
+    :`Накопи ${fmt(thr)} ⚡ для Prestige`;
+
+  document.getElementById('stats-list').innerHTML=`
+    <div class="stat-row"><span class="stat-label">Энергия</span><span class="stat-val">${fmt(score)} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">Всего накоплено</span><span class="stat-val">${fmt(totalEarned)} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">Кликов</span><span class="stat-val">${fmt(totalClicks)}</span></div>
+    <div class="stat-row"><span class="stat-label">За клик</span><span class="stat-val">+${fmt(getClick())} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">В секунду</span><span class="stat-val">+${fmt(getPS())} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">Prestige</span><span class="stat-val">${prestigeCount}x</span></div>
+    <div class="stat-row"><span class="stat-label">Множитель</span><span class="stat-val">x${prestigeMulti}</span></div>
+    <div class="stat-row"><span class="stat-label">Облако</span><span class="stat-val">${useCloud?'✓ Telegram':'localStorage'}</span></div>
+  `;
+}
+
+setInterval(()=>{
+  const ps=getPS();
+  if(ps>0){const g=ps/20;score+=g;totalEarned+=g;updateUI();}
+},50);
+
+setInterval(doSave,30000);
+window.addEventListener('beforeunload',doSave);
+if(tg)tg.onEvent('viewportChanged',doSave);
+
+loadSave(()=>{
+  document.getElementById('loading-screen').style.display='none';
+  updateUI();
+});
+</script>
+</body>
+</html>
