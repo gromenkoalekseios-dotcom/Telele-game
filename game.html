@@ -294,4 +294,161 @@ function handleClick(e) {
   document.body.appendChild(fl);
   setTimeout(() => fl.remove(), 900);
 
-  const btn = document.getElement
+  const btn = document.getElementById('click-btn');
+  btn.style.transform = 'scale(0.88)';
+  setTimeout(() => btn.style.transform = '', 100);
+
+  doSave();
+  updateUI();
+}
+
+function buyUpgrade(i) {
+  const b = BASE_UPGRADES[i];
+  const cost = calcCost(b.cost, uOwned[i], U_MULT);
+  if (score < cost) return;
+  score -= cost;
+  uOwned[i]++;
+  notify(b.name + ' куплено!');
+  doSave();
+  updateUI();
+}
+
+function buyGenerator(i) {
+  const b = BASE_GENERATORS[i];
+  const cost = calcCost(b.cost, gOwned[i], G_MULT);
+  if (score < cost) return;
+  score -= cost;
+  gOwned[i]++;
+  notify(b.name + ' активирован!');
+  doSave();
+  updateUI();
+}
+
+function doPrestige() {
+  const need = 1e6 * Math.pow(5, prestigeCount);
+  if (totalEarned < need) return;
+  prestigeCount++;
+  prestigeMulti = 1 + prestigeCount * 0.5;
+  score = totalClicks = totalEarned = 0;
+  uOwned.fill(0);
+  gOwned.fill(0);
+  notify('PRESTIGE ×' + prestigeCount + ' !');
+  doSave();
+  updateUI();
+}
+
+function notify(text) {
+  let n = document.querySelector('.notif');
+  if (n) n.remove();
+  n = document.createElement('div');
+  n.className = 'notif';
+  n.textContent = text;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 2200);
+}
+
+// ────────────────────────────────────────────────────────────────
+// Отрисовка интерфейса
+// ────────────────────────────────────────────────────────────────
+function updateUI() {
+  document.getElementById('score').textContent = fmt(score);
+  document.getElementById('per-sec').textContent = '+' + fmt(getPerSec()) + ' / сек';
+  document.getElementById('click-info').textContent = 'за клик: +' + fmt(getClickPower());
+
+  // Улучшения
+  let html = '';
+  BASE_UPGRADES.forEach((b, i) => {
+    const cost = calcCost(b.cost, uOwned[i], U_MULT);
+    const cls = score >= cost ? '' : ' locked';
+    html += `
+      <button class="item-btn${cls}" onclick="buyUpgrade(${i})">
+        <div class="item-left">
+          <div class="item-name">${b.name}</div>
+          <div class="item-desc">${b.desc}</div>
+          ${uOwned[i] ? `<div class="item-owned">×${uOwned[i]}</div>` : ''}
+        </div>
+        <div class="item-cost">${fmt(cost)} ⚡</div>
+      </button>`;
+  });
+  document.getElementById('panel-upgrades').innerHTML = html;
+
+  // Генераторы + Prestige
+  html = '';
+  BASE_GENERATORS.forEach((b, i) => {
+    const cost = calcCost(b.cost, gOwned[i], G_MULT);
+    const cls = score >= cost ? '' : ' locked';
+    html += `
+      <button class="item-btn${cls}" onclick="buyGenerator(${i})">
+        <div class="item-left">
+          <div class="item-name">${b.name}</div>
+          <div class="item-desc">${b.desc}</div>
+          ${gOwned[i] ? `<div class="item-owned">×${gOwned[i]}</div>` : ''}
+        </div>
+        <div class="item-cost">${fmt(cost)} ⚡</div>
+      </button>`;
+  });
+
+  const need = 1e6 * Math.pow(5, prestigeCount);
+  const canPrestige = totalEarned >= need;
+  html += `
+    <div class="prestige-wrap">
+      <button class="prestige-btn" ${canPrestige ? '' : 'disabled'} onclick="doPrestige()">
+        ◈ PRESTIGE (нужно ${fmt(need)} ⚡)
+      </button>
+      <div class="prestige-info">
+        ${prestigeCount ? `Prestige: ${prestigeCount} ×${prestigeMulti}<br>Накоплено: ${fmt(totalEarned)} / ${fmt(need)}` : `Накопи ${fmt(need)} ⚡ для Prestige`}
+      </div>
+    </div>`;
+  document.getElementById('panel-generators').innerHTML = html;
+
+  // Статистика
+  document.getElementById('panel-stats').innerHTML = `
+    <div class="stat-row"><span class="stat-label">User ID</span><span class="stat-val">${tg.initDataUnsafe?.user?.id || '—'}</span></div>
+    <div class="stat-row"><span class="stat-label">Сохранение</span><span class="stat-val">${storage.type}</span></div>
+    <div class="stat-row"><span class="stat-label">Энергия</span><span class="stat-val">${fmt(score)} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">Всего кликов</span><span class="stat-val">${fmt(totalClicks)}</span></div>
+    <div class="stat-row"><span class="stat-label">Всего заработано</span><span class="stat-val">${fmt(totalEarned)} ⚡</span></div>
+    <div class="stat-row"><span class="stat-label">Prestige</span><span class="stat-val">${prestigeCount} (×${prestigeMulti})</span></div>`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// События
+// ────────────────────────────────────────────────────────────────
+document.getElementById('click-btn').onclick = handleClick;
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  };
+});
+
+setInterval(() => {
+  if (getPerSec() > 0) {
+    const gain = getPerSec() / 20;
+    score += gain;
+    totalEarned += gain;
+    updateUI();
+  }
+}, 50);
+
+setInterval(doSave, 12000);
+
+// Сохраняем при сворачивании / потере фокуса
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') doSave();
+});
+
+// ────────────────────────────────────────────────────────────────
+// Старт
+// ────────────────────────────────────────────────────────────────
+loadSave(() => {
+  document.getElementById('loading-screen').style.display = 'none';
+  updateUI();
+  doSave();
+});
+</script>
+</body>
+</html>
