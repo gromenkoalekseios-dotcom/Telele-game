@@ -143,10 +143,16 @@
 
 <script>
 const tg = window.Telegram?.WebApp;
-if (tg) { tg.expand(); tg.disableVerticalSwipes?.(); }
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.disableVerticalSwipes?.();
+}
 
 const useCloud = !!(tg && tg.CloudStorage);
-const SAVE_KEY = 'pclick_v3';
+// Уникальный ключ на каждого пользователя Telegram
+const userId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : 'guest';
+const SAVE_KEY = 'pclick_v3_' + userId;
 
 // ── Базовые данные (никогда не меняются) ─────────────────────────
 const BASE_UPGRADES = [
@@ -249,13 +255,14 @@ function setDot(cls) {
 function doSave() {
   const data = buildSave();
   setDot('saving');
+  // Всегда сохраняем в localStorage как резерв
+  try { localStorage.setItem(SAVE_KEY, data); } catch(_){}
   if (useCloud) {
     tg.CloudStorage.setItem(SAVE_KEY, data, err => {
-      if (err) { try { localStorage.setItem(SAVE_KEY, data); } catch(_){} setDot('error'); }
+      if (err) { setDot('error'); }
       else setDot('saved');
     });
   } else {
-    try { localStorage.setItem(SAVE_KEY, data); } catch(_){}
     setDot('saved');
   }
 }
@@ -263,12 +270,22 @@ function doSave() {
 function loadSave(cb) {
   if (useCloud) {
     tg.CloudStorage.getItem(SAVE_KEY, (err, val) => {
-      if (!err && val) applySave(val);
-      else { const l = localStorage.getItem(SAVE_KEY); if (l) applySave(l); }
+      if (!err && val && val.length > 2) {
+        applySave(val);
+      } else {
+        // Fallback: попробуем без userId (старый формат)
+        const oldKey = 'pclick_v3';
+        tg.CloudStorage.getItem(oldKey, (err2, val2) => {
+          if (!err2 && val2 && val2.length > 2) applySave(val2);
+          else { const l = localStorage.getItem(SAVE_KEY) || localStorage.getItem('pclick_v3'); if (l) applySave(l); }
+          cb();
+        });
+        return;
+      }
       cb();
     });
   } else {
-    const l = localStorage.getItem(SAVE_KEY);
+    const l = localStorage.getItem(SAVE_KEY) || localStorage.getItem('pclick_v3');
     if (l) applySave(l);
     cb();
   }
@@ -431,7 +448,8 @@ function updateUI() {
     '<div class="stat-row"><span class="stat-label">В секунду</span><span class="stat-val">+' + fmt(getPerSec()) + ' ⚡</span></div>' +
     '<div class="stat-row"><span class="stat-label">Prestige</span><span class="stat-val">' + prestigeCount + 'x</span></div>' +
     '<div class="stat-row"><span class="stat-label">Множитель</span><span class="stat-val">x' + prestigeMulti + '</span></div>' +
-    '<div class="stat-row"><span class="stat-label">Облако</span><span class="stat-val">' + (useCloud ? '✓ Telegram' : 'localStorage') + '</span></div>';
+    '<div class="stat-row"><span class="stat-label">Облако</span><span class="stat-val">' + (useCloud ? '✓ Telegram' : 'localStorage') + '</span></div>' +
+    '<div class="stat-row"><span class="stat-label">User ID</span><span class="stat-val">' + userId + '</span></div>';
 }
 
 // ── Автотик ──────────────────────────────────────────────────────
